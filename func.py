@@ -24,3 +24,11 @@ def get_users():
         return users
     else:
         return False
+    
+def get_termin(id : int):
+    termin = sql.execute(f"SELECT `Termens_short`,`Termens_full` FROM `Termens` WHERE `id` = {id}")
+    if termin:
+        termin = termin.fetchall()
+        return termin
+    else:
+        return False
