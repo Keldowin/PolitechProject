@@ -19,3 +19,4 @@ for filename in os.listdir(folder_path):
             fileinfo = f.read()
             sql.execute(f'INSERT INTO Termens (Termens_short,Termens_full) VALUES ("{file}","{fileinfo}")')
             db.commit()
+            print('Обработано')
