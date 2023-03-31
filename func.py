@@ -43,27 +43,35 @@ async def generate_test(callback_query):
         keyboard = InlineKeyboardMarkup()
         keyboard.add(InlineKeyboardButton('Следующий термин ➡',callback_data='NextTermin'),InlineKeyboardButton('Показать определение 📖',callback_data='FullTermin_'+str(TerminRand)))
 
-        TerminOutputMode = randint(1, 3) #Получаем режим вывода вопросв (1 - T.F.F / 2 - F.T.F / 3 - F.F.T)
-        BadTermins = sql.execute('SELECT `Termens_full` FROM Termens LIMIT 2;') #Запрос на 2 плохих ответа
+        TerminOutputMode = randint(1, 4) #Получаем режим вывода вопросв (1 - T.F.F / 2 - F.T.F / 3 - F.F.T)
+        BadTermins = sql.execute('SELECT `Termens_full` FROM Termens ORDER BY RANDOM() LIMIT 2;') #Запрос на 2 плохих ответа
         BadTermins = BadTermins.fetchall()
 
-        ShortTermin_full = textwrap.shorten(Termin[0][1], width=50, placeholder="...")
-        ShortTermin_bad = textwrap.shorten(BadTermins[0][0], width=50, placeholder="...")
-        ShortTermin_bad2 = textwrap.shorten(BadTermins[1][0], width=50, placeholder="...")
+        ShortTermin_full = Termin[0][1]
+        ShortTermin_bad = BadTermins[0][0]
+        ShortTermin_bad2 = BadTermins[1][0]
         #Строим ответы
         if TerminOutputMode == 1:
-            keyboard.add(InlineKeyboardButton(ShortTermin_full,callback_data='TrueAnswer'))
-            keyboard.add(InlineKeyboardButton(ShortTermin_bad,callback_data='FalseAnswer'))
-            keyboard.add(InlineKeyboardButton(ShortTermin_bad2,callback_data='FalseAnswer'))
+            TerminMode = f"1. {ShortTermin_full}\n\n2. {ShortTermin_bad}\n\n3. {ShortTermin_bad2}"
+            keyboard.add(InlineKeyboardButton("Вариант 1.",callback_data='TrueAnswer'))
+            keyboard.add(InlineKeyboardButton("Вариант 2.",callback_data='FalseAnswer'))
+            keyboard.add(InlineKeyboardButton("Вариант 3.",callback_data='FalseAnswer'))
         elif TerminOutputMode == 2:
-            keyboard.add(InlineKeyboardButton(ShortTermin_bad,callback_data='FalseAnswer'))
-            keyboard.add(InlineKeyboardButton(ShortTermin_full,callback_data='TrueAnswer'))
-            keyboard.add(InlineKeyboardButton(ShortTermin_bad2,callback_data='FalseAnswer'))
+            TerminMode = f"1. {ShortTermin_bad}\n\n2. {ShortTermin_full}\n\n3. {ShortTermin_bad2}"
+            keyboard.add(InlineKeyboardButton("Вариант 1.",callback_data='FalseAnswer'))
+            keyboard.add(InlineKeyboardButton("Вариант 2.",callback_data='TrueAnswer'))
+            keyboard.add(InlineKeyboardButton("Вариант 3.",callback_data='FalseAnswer'))
         elif TerminOutputMode == 3:
-            keyboard.add(InlineKeyboardButton(ShortTermin_bad,callback_data='FalseAnswer'))
-            keyboard.add(InlineKeyboardButton(ShortTermin_bad2,callback_data='FalseAnswer'))
-            keyboard.add(InlineKeyboardButton(ShortTermin_full,callback_data='TrueAnswer'))
+            TerminMode = f"1. {ShortTermin_bad}\n\n2. {ShortTermin_bad2}\n\n3. {ShortTermin_full}"
+            keyboard.add(InlineKeyboardButton("Вариант 1.",callback_data='FalseAnswer'))
+            keyboard.add(InlineKeyboardButton("Вариант 2.",callback_data='FalseAnswer'))
+            keyboard.add(InlineKeyboardButton("Вариант 3.",callback_data='TrueAnswer'))
+        elif TerminOutputMode == 4:
+            TerminMode = f"1. {ShortTermin_bad2}\n\n2. {ShortTermin_bad}\n\n3. {ShortTermin_full}"
+            keyboard.add(InlineKeyboardButton("Вариант 1.",callback_data='FalseAnswer'))
+            keyboard.add(InlineKeyboardButton("Вариант 2.",callback_data='FalseAnswer'))
+            keyboard.add(InlineKeyboardButton("Вариант 3.",callback_data='TrueAnswer'))
 
         keyboard.add(InlineKeyboardButton('⬅ Назад в меню',callback_data='Menu'))
-        TerminText = f"Выберите правильное определение на термин:\n<u><b>{Termin[0][0]}</b></u>"
+        TerminText = f"Выберите <u><b>правильный вариант</b></u> определения на термин:\n<b>{Termin[0][0]}</b>\n\n{TerminMode}"
         await callback_query.message.edit_text(text=TerminText,reply_markup=keyboard,parse_mode='HTML')
