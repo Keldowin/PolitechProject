@@ -10,13 +10,13 @@ try:
 except sqlite3.Error as error:
     print("Error", error)
 #===SQLite connect===#
-folder_path = "Termins"  # Путь к папке "Termins"
+folder_path = "TerminV2/6"  # Путь к папке "Termins"
 
 for filename in os.listdir(folder_path):
     if filename.endswith(".txt"):
-        with open(os.path.join(folder_path, filename), "r") as f:
+        with open(os.path.join(folder_path, filename), "r", encoding='utf-8') as f:
             file = filename[:-4]
             fileinfo = f.read()
-            sql.execute(f'INSERT INTO Termens (Termens_short,Termens_full) VALUES ("{file}","{fileinfo}")')
+            sql.execute(f'INSERT INTO Termens (Termens_short,Termens_full,Termens_category) VALUES ("{file}","{fileinfo}",6)')
             db.commit()
-            print('Обработано')
+            print(f'Обработано [{file}]')

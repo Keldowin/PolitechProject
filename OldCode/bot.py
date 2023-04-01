@@ -39,8 +39,8 @@ bot = Bot(TOKEN) #Боту передаём токен
 dp = Dispatcher(bot,storage=MemoryStorage()) #Диспетчеру передаём бота
 
 keyboardM = InlineKeyboardMarkup()
-keyboardM.add(InlineKeyboardButton('Поиск термина 🔍',callback_data="TerminSerch"), InlineKeyboardButton('Банк терминов 🗃',callback_data="TerminBank"))
-keyboardM.add(InlineKeyboardButton('Перемена ⛱',callback_data='Memes'), InlineKeyboardButton('Тренировка терминов 📖',callback_data="Learn"))
+keyboardM.add(InlineKeyboardButton('Поиск термина 🔍',callback_data="TerminSerch"),InlineKeyboardButton('Тренировка терминов 📖',callback_data="LearnMenu"))
+keyboardM.add(InlineKeyboardButton('Перемена ⛱',callback_data='Memes'))
 keyboardM.add(InlineKeyboardButton('Обратная связь 👨‍💻',url="https://docs.google.com/forms/d/e/1FAIpQLSdQiqVmsf2WSlNUBf_PKS0sC2v_VQaHU38-XH0QWEU3Ct8KJA/viewform?usp=sf_link"))
 
 #Help меню
@@ -77,9 +77,9 @@ async def SendMemes(callback_query: types.CallbackQuery):
     #Достаём рандомно мем
     GetMeme = sql.execute('SELECT `MemesPath` FROM `Memes`')
     GetMeme = GetMeme.fetchall()
-    RandomId = randint(0, len(GetMeme))
+    RandomId = randint(1, len(GetMeme))
     photo = InputFile("Memes/"+GetMeme[RandomId][0])
-    print(f'Memes: {RandomId}')
+
     #Генерируем клавиатуру для переключения мемов и возврата в меню
     keyboard = InlineKeyboardMarkup()
     keyboard.add(InlineKeyboardButton('Следующий мем 😁',callback_data='NextMeme_'+str(RandomId)))
@@ -93,19 +93,18 @@ async def process_callback_button_dz(callback_query: types.CallbackQuery):
     GetMeme = sql.execute('SELECT `MemesPath` FROM `Memes`')
     GetMeme = GetMeme.fetchall()
 
-    RandomId = randint(0, len(GetMeme))
+    RandomId = randint(1, len(GetMeme))
     while RandomId == LastId:
         RandomId = randint(1, len(GetMeme))
     photo = InputFile("Memes/"+GetMeme[RandomId][0])
 
-    print(f'NextMemeRandID: {RandomId}')
     #Генерируем клавиатуру для переключения мемов и возврата в меню
     keyboard = InlineKeyboardMarkup()
     keyboard.add(InlineKeyboardButton('Следующий мем 😁',callback_data='NextMeme_'+str(RandomId)))
 
     await bot.send_photo(chat_id=callback_query.message.chat.id,photo=photo,reply_markup=keyboard)
 
-@dp.message_handler(commands=['termin'])
+@dp.message_handler(commands=['termin','термин'])
 async def termincommand(message: types.Message):
     await bot.send_message(message.from_user.id,f"Введите <b>термин</b>, который хотите найти",parse_mode='HTML')
     await TerminSerch.waiting_for_input.set()
@@ -156,7 +155,7 @@ async def process_callback_button_dz(callback_query: types.CallbackQuery):
         ShortTermin = TerminData[0][0]
         keyborad = InlineKeyboardMarkup()
         keyborad.add(InlineKeyboardButton('⬅ Назад к поиску',callback_data='BackSerch_'+ShortTermin[0]))
-        await callback_query.message.edit_text(text=f"— <u><b>{TerminData[0][0]}</b></u>\n\n{TerminData[0][1]}",parse_mode='HTML',reply_markup=keyborad)
+        await callback_query.message.edit_text(text=f"▪ <u><b>{TerminData[0][0]}</b></u>\n\n{TerminData[0][1]}",parse_mode='HTML',reply_markup=keyborad)
         TerminSerch.end = 1
     else:
         await callback_query.message.answer(text=f"Определение не найдено, попробуйте найти заново /termin")
@@ -183,18 +182,30 @@ async def process_callback_button_dz(callback_query: types.CallbackQuery):
         keyboard.add(InlineKeyboardButton('⬅ Назад в меню',callback_data='Menu'))
         await callback_query.message.edit_text(text="Вот что удалось найти:",reply_markup=keyboard,parse_mode='HTML')
 
+@dp.callback_query_handler(lambda c: c.data == 'LearnMenu')
+async def SendMemes(callback_query: types.CallbackQuery):
+    keyboard = InlineKeyboardMarkup()
+    keyboard.add(InlineKeyboardButton(''))
+
+    await bot.send_message(chat_id=callback_query.message.chat.id, text='Выбери категорию определений для тренировки:',reply_markup=keyboard)
+
 #Тренировка терминов
-@dp.callback_query_handler(lambda c: c.data == 'Learn')
-async def TerminSerchMethod(callback_query: types.CallbackQuery):
+@dp.callback_query_handler(lambda c: c.data and c.data.startswith('Learn_'))
+async def process_callback_button_dz(callback_query: types.CallbackQuery):
+    #Получаем категорию следующего термина
+    TerminCategory = callback_query.data.split('_')[1]
+
     await bot.answer_callback_query(callback_query.id)
-    
-    await generate_test(callback_query)
+    await generate_test(callback_query, TerminCategory)
 
 #Выдаём следующий термин
-@dp.callback_query_handler(lambda c: c.data == 'NextTermin')
-async def TerminSerchMethod(callback_query: types.CallbackQuery):
+@dp.callback_query_handler(lambda c: c.data and c.data.startswith('NextTermin_'))
+async def process_callback_button_dz(callback_query: types.CallbackQuery):
+    #Получаем категорию следующего термина
+    TerminCategory = callback_query.data.split('_')[1]
+
     await bot.answer_callback_query(callback_query.id)
-    await generate_test(callback_query)
+    await generate_test(callback_query, TerminCategory)
 
 #Выдаём определение термина
 @dp.callback_query_handler(lambda c: c.data and c.data.startswith('FullTermin_'))
@@ -206,71 +217,26 @@ async def CheckFullTermin(callback_query: types.CallbackQuery):
     Termin = get_termin(TerminRand)
     if Termin:
         keyboard = InlineKeyboardMarkup()
-        keyboard.add(InlineKeyboardButton('Следующий термин ➡',callback_data='NextTermin'))
+        keyboard.add(InlineKeyboardButton('Следующий термин ➡',callback_data='NextTermin_'+str(Termin[0][2])))
         keyboard.add(InlineKeyboardButton('⬅ Назад в меню',callback_data='Menu'))
         TerminText = f"Термин:\n<u><b>{Termin[0][0]}</b></u>\n\nОпределение: {Termin[0][1]}"
         await callback_query.message.edit_text(text=TerminText,reply_markup=keyboard,parse_mode='HTML')
 
-@dp.callback_query_handler(lambda c: c.data == 'TrueAnswer')
-async def TerminSerchMethod(callback_query: types.CallbackQuery):
-    await callback_query.answer(text="Правильный ответ ✔",show_alert=True)
-    
-    await generate_test(callback_query)
-
-@dp.callback_query_handler(lambda c: c.data == 'FalseAnswer')
-async def TerminSerchMethod(callback_query: types.CallbackQuery):
-    await callback_query.answer(text="Неправильный ответ ❌",show_alert=True)
-    await TerminSerchMethod(callback_query)
-
-#=====БАНК ТЕРМИНОВ======
-@dp.callback_query_handler(lambda c: c.data == 'TerminBank')
-async def SendMemes(callback_query: types.CallbackQuery):
-    await bot.answer_callback_query(callback_query.id)
-
-    keyboard = InlineKeyboardMarkup()
-    keyboard.add(InlineKeyboardButton('Политика',callback_data='TerminSerchBank_1'), InlineKeyboardButton('Экономика',callback_data='TerminSerchBank_2'))
-    keyboard.add(InlineKeyboardButton('Социальная сфера',callback_data='TerminSerchBank_3'), InlineKeyboardButton('Духовная сфера',callback_data='TerminSerchBank_4'))
-    keyboard.add(InlineKeyboardButton('Человек и общество',callback_data='TerminSerchBank_5'), InlineKeyboardButton('Право',callback_data='TerminSerchBank_6'))
-    keyboard.add(InlineKeyboardButton('⬅ Назад в меню',callback_data='Menu'))
-
-    await callback_query.message.edit_text(text='Выбери <b>категорию</b> терминов:',reply_markup=keyboard,parse_mode='HTML')
-
-#Меню найденых терминов
-@dp.callback_query_handler(lambda c: c.data and c.data.startswith('TerminSerchBank_'))
-async def CheckFullTermin(callback_query: types.CallbackQuery):
-    await bot.answer_callback_query(callback_query.id)
-    TerminCategory = int(callback_query.data.split('_')[1]) #Получаем категорию нужных элементов
-
-
-    SerchFunc = sql.execute(f"SELECT `id`,`Termens_short`,`Termens_category` FROM `Termens` WHERE `Termens_category` = {TerminCategory}")
-    SerchFunc = SerchFunc.fetchall()
-    if not SerchFunc:
-        await bot.send_message(text="Ничего не найдено, попробуйте найти заново /menu")
-    else:
-        keyboard = InlineKeyboardMarkup()
-        for i in range(len(SerchFunc)):
-            TerminId = str(SerchFunc[i][0])
-            TerminShortName = SerchFunc[i][1]
-            keyboard.add(InlineKeyboardButton(f"{i}. "+TerminShortName,callback_data="TerminB_"+str(TerminId)))
-
-        keyboard.add(InlineKeyboardButton('⬅ Назад',callback_data='TerminBank'))
-        await callback_query.message.edit_text(text=f"Термины по категории <b>{TerminCatehorys[TerminCategory]}</b>:",reply_markup=keyboard,parse_mode='HTML')
-
-#Обработка термина
-@dp.callback_query_handler(lambda c: c.data and c.data.startswith('TerminB_'))
+@dp.callback_query_handler(lambda c: c.data and c.data.startswith('TrueAnswer_'))
 async def process_callback_button_dz(callback_query: types.CallbackQuery):
-    await bot.answer_callback_query(callback_query.id)
-    Termin_id = callback_query.data.split('_')[1]
-    TerminData = get_termin(Termin_id)
-    if TerminData:
-        ShortTermin = TerminData[0][0]
-        keyborad = InlineKeyboardMarkup()
-        keyborad.add(InlineKeyboardButton('⬅ Назад',callback_data='TerminSerchBank_'+str(TerminData[0][2])))
-        await callback_query.message.edit_text(text=f"— <u><b>{TerminData[0][0]}</b></u>\n\n{TerminData[0][1]}",parse_mode='HTML',reply_markup=keyborad)
-        TerminSerch.end = 1
-    else:
-        await callback_query.message.answer(text=f"Определение не найдено, попробуйте найти заново /termin")
-        TerminSerch.end = 0
+    #Получаем категорию следующего термина
+    TerminCategory = callback_query.data.split('_')[1]
+
+    await callback_query.answer(text="Правильный ответ ✔",show_alert=True)
+    await generate_test(callback_query, TerminCategory)
+
+@dp.callback_query_handler(lambda c: c.data and c.data.startswith('FalseAnswer_'))
+async def process_callback_button_dz(callback_query: types.CallbackQuery):
+    #Получаем категорию следующего термина
+    TerminCategory = callback_query.data.split('_')[1]
+
+    await callback_query.answer(text="Неправильный ответ ❌",show_alert=True)
+    #await TerminSerchMethod(callback_query, TerminCategory)
 
 if __name__ == '__main__':
     executor.start_polling(dp)
